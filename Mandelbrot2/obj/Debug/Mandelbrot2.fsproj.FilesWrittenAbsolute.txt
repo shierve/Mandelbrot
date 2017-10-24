@@ -1,0 +1,8 @@
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/obj/Debug/.NETFramework,Version=v4.5.AssemblyAttribute.fs
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/Mandelbrot2.exe.config
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/Mandelbrot2.exe.mdb
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/Mandelbrot2.exe
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/obj/Debug/Mandelbrot2.exe
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/obj/Debug/Mandelbrot2.exe.mdb
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/FSharp.Core.dll
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/System.ValueTuple.dll
