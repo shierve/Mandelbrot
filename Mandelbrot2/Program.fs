@@ -1,11 +1,12 @@
 ﻿open System.Drawing
 open System.IO
 open System.Numerics
+open System
 
 let f (z : Complex) (c : Complex) = (z * z) + c
 
 let rec iterate currentIteration maxIterations (z : Complex) (c : Complex) =
-    if z.Magnitude > 2.0 then Some currentIteration
+    if z.Magnitude > 256.0 then Some (currentIteration, z)
     else if currentIteration >= maxIterations then None
     else iterate (currentIteration+1) maxIterations (f z c) c
 
@@ -23,10 +24,34 @@ let pointsMatrix (xPixels : int) (yPixels : int) (center : Complex) (r : float) 
         |]
     |]
 
-let color (palette : array<Color>) iterations =
-    palette.[iterations % (palette.Length)]
+let createColor (r,g,b) = Color.FromArgb(255, min r 255, min g 255, min b 255)
 
-let draw iterations (points : array<array<option<int>>>) =
+let interpolate (c1:Color) (c2:Color) (m:float) =
+    createColor(
+        (1. - m) * float c1.R + float c2.R * m |> int,
+        (1. - m) * float c1.G + float c2.G * m |> int,
+        (1. - m) * float c1.B + float c2.B * m |> int
+    )
+
+let color (palette : array<Color>) (h : int) (hNext : int) (nu : float) =
+    let c1 = palette.[h%palette.Length]
+    let c2 = palette.[hNext%palette.Length]
+    let m = nu % 1.0
+    interpolate c1 c2 m
+
+let histogram iterations (points : array<array<option<int * Complex>>>) =
+    let h = Array.zeroCreate iterations
+    let width = points.[0].Length
+    let height = points.Length
+    for i in 0..(width-1) do
+        for j in 0..(height-1) do
+            match points.[j].[i] with
+            | Some (it, _) -> h.[it-1] <- h.[it-1] + 1
+            | None -> ()
+    let (accum, total) = Array.mapFold (fun acc i -> (acc + i, acc + i)) 0 h
+    Array.map (fun n -> (float)n/(float)total) accum
+
+let draw iterations (points : array<array<option<int * Complex>>>) =
     let palette = [|
         Color.FromArgb(255, 66, 30, 15);
         Color.FromArgb(255, 25, 7, 26);
@@ -47,22 +72,50 @@ let draw iterations (points : array<array<option<int>>>) =
     |]
     let width = points.[0].Length
     let height = points.Length
+    let hist = histogram iterations points
     let bitmap = new Bitmap(width, height)
     for i in 0..(width-1) do
         for j in 0..(height-1) do
             match points.[j].[i] with
-            | Some it -> bitmap.SetPixel(i, j, (color palette it))
+            | Some (it, c) ->
+                let logZn = (log ( c.Real*c.Real + c.Imaginary*c.Imaginary )) / 2.0
+                let nu = float it + 1.0 - (log( logZn / log(2.0) )) / log(2.0)
+                let h = (float)(2*palette.Length)*hist.[it-1] |> int
+                let hNext = match it with
+                | it when it >= iterations -> h
+                | _ -> (float)(2*palette.Length)*hist.[it] |> int
+                bitmap.SetPixel(i, j, (color palette h hNext nu))
             | None -> bitmap.SetPixel(i, j, Color.Black)
     bitmap
+
+let render xPixels yPixels iterations x y r =
+    let bm = pointsMatrix xPixels yPixels (Complex(x, y)) r |> mandelbrot iterations |> draw iterations
+    bm.Save(Path.Combine(__SOURCE_DIRECTORY__, "plot.png"))
 
 [<EntryPoint>]
 let main argv =
     let xPixels = int argv.[0]
     let yPixels = int argv.[1]
-    let iterations = int argv.[2]
-    let x = float argv.[3]
-    let y = float argv.[4]
-    let r = float argv.[5]
-    let bm = pointsMatrix xPixels yPixels (Complex(x, y)) r |> mandelbrot iterations |> draw iterations
-    bm.Save(Path.Combine(__SOURCE_DIRECTORY__, "plot.png"))
+    let mutable iterations = int argv.[2]
+    let mutable x = float argv.[3]
+    let mutable y = float argv.[4]
+    let mutable r = float argv.[5]
+    render xPixels yPixels iterations x y r
+    // Interactive
+    (*printf "->"
+    let mutable key = System.Console.ReadKey()
+    while (not (key.Key.Equals(ConsoleKey.Q))) do
+        match key with
+        | k when k.Key.Equals(ConsoleKey.W) -> y <- y + (r/4.0)
+        | k when k.Key.Equals(ConsoleKey.S) -> y <- y - (r/4.0)
+        | k when k.Key.Equals(ConsoleKey.A) -> x <- x - (r/4.0)
+        | k when k.Key.Equals(ConsoleKey.D) -> x <- x + (r/4.0)
+        | k when k.Key.Equals(ConsoleKey.I) -> iterations <- iterations + 50
+        | k when k.Key.Equals(ConsoleKey.O) -> iterations <- iterations - 50
+        | k when k.Key.Equals(ConsoleKey.Add) -> r <- (r/1.5)
+        | k when k.Key.Equals(ConsoleKey.Subtract) -> r <- (r*1.5)
+        render xPixels yPixels iterations x y r
+        printf "\n->"
+        key <- System.Console.ReadKey()
+    printfn "\nBye!"*)
     0
