@@ -33,10 +33,12 @@ let interpolate (c1:Color) (c2:Color) (m:float) =
         (1. - m) * float c1.B + float c2.B * m |> int
     )
 
-let color (palette : array<Color>) (h : int) (hNext : int) (nu : float) =
-    let c1 = palette.[h%palette.Length]
-    let c2 = palette.[hNext%palette.Length]
-    let m = nu % 1.0
+let color (adjPalette : array<Color>) (palette : array<Color>) (it : int) (nu : float) (p : (int * int * int)) =
+    let c1 = adjPalette.[it-1]
+    let iNext = ((Array.findIndex (fun c -> c = c1) palette)+1)%palette.Length
+    let c2 = palette.[iNext]
+    let (s, n, d) = p
+    let m = (((nu % 1.0)*(float(n-s)/float d))+(float s/float d))
     interpolate c1 c2 m
 
 let histogram iterations (points : array<array<option<int * Complex>>>) =
@@ -50,6 +52,51 @@ let histogram iterations (points : array<array<option<int * Complex>>>) =
             | None -> ()
     let (accum, total) = Array.mapFold (fun acc i -> (acc + i, acc + i)) 0 h
     Array.map (fun n -> (float)n/(float)total) accum
+
+let iterCount iterations (points : array<array<option<int * Complex>>>) =
+    let h = Array.zeroCreate iterations
+    let width = points.[0].Length
+    let height = points.Length
+    for i in 0..(width-1) do
+        for j in 0..(height-1) do
+            match points.[j].[i] with
+            | Some (it, _) -> h.[it-1] <- h.[it-1] + 1
+            | None -> ()
+    h
+
+let positions (adjPalette : array<Color>) (iterCounts : array<int>) =
+    let rec separate (l : List<Color>) =
+        match l with
+        | x :: _ -> List.takeWhile (fun n -> n = x) l :: separate (List.skipWhile (fun n -> n = x) l)
+        | _ -> []
+    let lists = separate (List.ofArray adjPalette)
+    let genCount n =
+        [| for i in 1..n -> (i, n) |]
+    let groups = List.map (fun (l : List<Color>) -> genCount l.Length) lists
+    let rec processGroup i (all : list<array<(int * int)>>) =
+        match all with
+        | x :: xs ->
+            let size = snd x.[0]
+            let subIters = iterCounts.[i..(i+size-1)]
+            let total = Array.sum subIters
+            List.ofArray (Array.mapi (fun i _ -> ((Array.sum subIters.[0..(i-1)]), (Array.sum subIters.[0..i]), total)) subIters) :: (processGroup (i+size) xs)
+        | _ -> []
+    processGroup 0 groups |> List.concat |> Array.ofList
+
+let makePalette (palette : array<Color>) (hist : array<float>) =
+    let colorPalette : array<Color> = Array.zeroCreate hist.Length
+    let colors = palette.Length
+    let rec assign i lastC lastN =
+        if i < colorPalette.Length then
+            match (int (2.0*(float colors)*hist.[i-1])) with
+            | n when n > lastN ->
+                colorPalette.[i] <- palette.[(lastC+1)%colors]
+                assign (i+1) (lastC+1) n
+            | _ ->
+                colorPalette.[i] <- palette.[lastC%colors]
+                assign (i+1) lastC lastN
+    assign 1 -1 -1
+    colorPalette
 
 let draw iterations (points : array<array<option<int * Complex>>>) =
     let palette = [|
@@ -73,18 +120,17 @@ let draw iterations (points : array<array<option<int * Complex>>>) =
     let width = points.[0].Length
     let height = points.Length
     let hist = histogram iterations points
+    let iterCounts = iterCount iterations points
     let bitmap = new Bitmap(width, height)
+    let adjPalette = makePalette palette hist
+    let p = positions adjPalette iterCounts
     for i in 0..(width-1) do
         for j in 0..(height-1) do
             match points.[j].[i] with
             | Some (it, c) ->
                 let logZn = (log ( c.Real*c.Real + c.Imaginary*c.Imaginary )) / 2.0
                 let nu = float it + 1.0 - (log( logZn / log(2.0) )) / log(2.0)
-                let h = (float)(2*palette.Length)*hist.[it-1] |> int
-                let hNext = match it with
-                | it when it >= iterations -> h
-                | _ -> (float)(2*palette.Length)*hist.[it] |> int
-                bitmap.SetPixel(i, j, (color palette h hNext nu))
+                bitmap.SetPixel(i, j, (color adjPalette palette it nu p.[it-1]))
             | None -> bitmap.SetPixel(i, j, Color.Black)
     bitmap
 
@@ -101,6 +147,7 @@ let main argv =
     let mutable y = float argv.[4]
     let mutable r = float argv.[5]
     render xPixels yPixels iterations x y r
+    //(positions ([|1./8.;2./8.;3./8.;8./8.|]) 1 ([|1;2;1;4|])) |> printfn "%A"
     // Interactive
     (*printf "->"
     let mutable key = System.Console.ReadKey()
