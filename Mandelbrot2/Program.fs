@@ -23,15 +23,35 @@ let pointsMatrix (xPixels : int) (yPixels : int) (center : Complex) (r : float) 
         |]
     |]
 
+let color (palette : array<Color>) iterations =
+    palette.[iterations % (palette.Length)]
+
 let draw iterations (points : array<array<option<int>>>) =
-    let palette = [| for i in 0..iterations -> Color.FromArgb(255, 0, 0, (255*i/iterations)) |]
+    let palette = [|
+        Color.FromArgb(255, 66, 30, 15);
+        Color.FromArgb(255, 25, 7, 26);
+        Color.FromArgb(255, 9, 1, 47);
+        Color.FromArgb(255, 4, 4, 73);
+        Color.FromArgb(255, 0, 7, 100);
+        Color.FromArgb(255, 12, 44, 138);
+        Color.FromArgb(255, 24, 82, 177);
+        Color.FromArgb(255, 57, 125, 209);
+        Color.FromArgb(255, 134, 181, 229);
+        Color.FromArgb(255, 211, 236, 248);
+        Color.FromArgb(255, 241, 233, 191);
+        Color.FromArgb(255, 248, 201, 95);
+        Color.FromArgb(255, 255, 170, 0);
+        Color.FromArgb(255, 204, 128, 0);
+        Color.FromArgb(255, 153, 87, 0);
+        Color.FromArgb(255, 106, 52, 3);
+    |]
     let width = points.[0].Length
     let height = points.Length
     let bitmap = new Bitmap(width, height)
     for i in 0..(width-1) do
         for j in 0..(height-1) do
             match points.[j].[i] with
-            | Some it -> bitmap.SetPixel(i, j, palette.[it])
+            | Some it -> bitmap.SetPixel(i, j, (color palette it))
             | None -> bitmap.SetPixel(i, j, Color.Black)
     bitmap
 
