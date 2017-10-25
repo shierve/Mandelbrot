@@ -2,6 +2,12 @@
 open System.IO
 open System.Numerics
 open System
+open Palettes
+
+[<Literal>]
+let paletteLoops = 2
+//wiki
+let palette = Palette.wiki2
 
 let f (z : Complex) (c : Complex) = (z * z) + c
 
@@ -41,7 +47,7 @@ let interpolate (c1:Color) (c2:Color) (m:float) =
     )
 
 // returns the color of a pixel given its parameters
-let color (iterColors : array<int>) (palette : array<Color>) (it : int) (nu : float) ((s, n, d) : (int * int * int)) =
+let color (iterColors : array<int>) (it : int) (nu : float) ((s, n, d) : (int * int * int)) =
     let c1 = palette.[iterColors.[it-1]]
     let c2 = palette.[(iterColors.[it-1] + 1)%palette.Length]
     let m = (((nu % 1.0)*(float(n-s)/float d))+(float s/float d))
@@ -86,12 +92,12 @@ let positions (iterColors : array<int>) (iterCounts : array<int>) =
 
 // Assigns a color to every iteration. Makes sure all contiguous iterations have contiguous or equal colors.
 // Returns an array of indexes to the palette
-let assignColors (palette : array<Color>) (hist : array<float>) =
+let assignColors (hist : array<float>) =
     let iterColors : array<int> = Array.zeroCreate hist.Length
     let colors = palette.Length
     let rec assign i lastC lastN =
         if i < iterColors.Length then
-            match (int (2.0*(float colors)*hist.[i-1])) with
+            match (int ((float paletteLoops)*(float colors)*hist.[i-1])) with
             | n when n > lastN ->
                 iterColors.[i] <- (lastC+1)%colors
                 assign (i+1) (lastC+1) n
@@ -103,28 +109,10 @@ let assignColors (palette : array<Color>) (hist : array<float>) =
 
 // generates the bitmap from number of iterations and a result array from the mandelbrot function
 let draw iterations (points : array<array<option<int * Complex>>>) =
-    let palette = [|
-        Color.FromArgb(255, 66, 30, 15);
-        Color.FromArgb(255, 25, 7, 26);
-        Color.FromArgb(255, 9, 1, 47);
-        Color.FromArgb(255, 4, 4, 73);
-        Color.FromArgb(255, 0, 7, 100);
-        Color.FromArgb(255, 12, 44, 138);
-        Color.FromArgb(255, 24, 82, 177);
-        Color.FromArgb(255, 57, 125, 209);
-        Color.FromArgb(255, 134, 181, 229);
-        Color.FromArgb(255, 211, 236, 248);
-        Color.FromArgb(255, 241, 233, 191);
-        Color.FromArgb(255, 248, 201, 95);
-        Color.FromArgb(255, 255, 170, 0);
-        Color.FromArgb(255, 204, 128, 0);
-        Color.FromArgb(255, 153, 87, 0);
-        Color.FromArgb(255, 106, 52, 3);
-    |]
     let width = points.[0].Length
     let height = points.Length
     let (iterCounts, hist) = histogram iterations points
-    let iterColors = assignColors palette hist
+    let iterColors = assignColors hist
     let p = positions iterColors iterCounts
     let bitmap = new Bitmap(width, height)
     for i in 0..(width-1) do
@@ -133,7 +121,7 @@ let draw iterations (points : array<array<option<int * Complex>>>) =
             | Some (it, c) ->
                 let logZn = (log ( c.Real*c.Real + c.Imaginary*c.Imaginary )) / 2.0
                 let nu = float it + 1.0 - (log( logZn / log(2.0) )) / log(2.0)
-                bitmap.SetPixel(i, j, (color iterColors palette it nu p.[it-1]))
+                bitmap.SetPixel(i, j, (color iterColors it nu p.[it-1]))
             | None -> bitmap.SetPixel(i, j, Color.Black)
     bitmap
 
