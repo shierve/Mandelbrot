@@ -5,6 +5,7 @@ open System
 
 let f (z : Complex) (c : Complex) = (z * z) + c
 
+// Returns None if in the set, else Some (it, z) where it is the escape iteration and z the value at that point
 let rec iterate currentIteration maxIterations (z : Complex) (c : Complex) =
     if z.Magnitude > 256.0 then Some (currentIteration, z)
     else if currentIteration >= maxIterations then None
@@ -149,7 +150,8 @@ let main argv =
     render xPixels yPixels iterations x y r
     //(positions ([|1./8.;2./8.;3./8.;8./8.|]) 1 ([|1;2;1;4|])) |> printfn "%A"
     // Interactive
-    (*printf "->"
+    (*
+    printf "->"
     let mutable key = System.Console.ReadKey()
     while (not (key.Key.Equals(ConsoleKey.Q))) do
         match key with
@@ -161,6 +163,7 @@ let main argv =
         | k when k.Key.Equals(ConsoleKey.O) -> iterations <- iterations - 50
         | k when k.Key.Equals(ConsoleKey.Add) -> r <- (r/1.5)
         | k when k.Key.Equals(ConsoleKey.Subtract) -> r <- (r*1.5)
+        printfn "x: %A, y: %A, r: %A" x y r
         render xPixels yPixels iterations x y r
         printf "\n->"
         key <- System.Console.ReadKey()
