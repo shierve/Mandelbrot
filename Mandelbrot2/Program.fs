@@ -11,10 +11,16 @@ let rec iterate currentIteration maxIterations (z : Complex) (c : Complex) =
     else if currentIteration >= maxIterations then None
     else iterate (currentIteration+1) maxIterations (f z c) c
 
+// Iterates a whole 2d Array of points
 let mandelbrot iterations points =
-    let testC c = iterate 0 iterations Complex.Zero c
-    points |> Array.map (fun row -> Array.map testC row)
+    let testC c = async{
+        return iterate 0 iterations Complex.Zero c
+    }
+    points |> Array.map (fun row ->
+        Async.Parallel [ for c in row -> testC c ] |> Async.RunSynchronously
+    )
 
+// Returns a matrix of x*y Complex numbers representing points in the complex plane
 let pointsMatrix (xPixels : int) (yPixels : int) (center : Complex) (r : float) =
     let pointIncrement = (r / (float)(xPixels/2))
     let startX = center.Real - (pointIncrement*(float)(xPixels/2))
@@ -25,55 +31,49 @@ let pointsMatrix (xPixels : int) (yPixels : int) (center : Complex) (r : float) 
         |]
     |]
 
-let createColor (r,g,b) = Color.FromArgb(255, min r 255, min g 255, min b 255)
-
+// returns interpolated color between c1 and c2 with m between 0 and 1
 let interpolate (c1:Color) (c2:Color) (m:float) =
+    let createColor (r,g,b) = Color.FromArgb(255, min r 255, min g 255, min b 255)
     createColor(
         (1. - m) * float c1.R + float c2.R * m |> int,
         (1. - m) * float c1.G + float c2.G * m |> int,
         (1. - m) * float c1.B + float c2.B * m |> int
     )
 
-let color (adjPalette : array<Color>) (palette : array<Color>) (it : int) (nu : float) (p : (int * int * int)) =
-    let c1 = adjPalette.[it-1]
-    let iNext = ((Array.findIndex (fun c -> c = c1) palette)+1)%palette.Length
-    let c2 = palette.[iNext]
-    let (s, n, d) = p
+// returns the color of a pixel given its parameters
+let color (iterColors : array<int>) (palette : array<Color>) (it : int) (nu : float) ((s, n, d) : (int * int * int)) =
+    let c1 = palette.[iterColors.[it-1]]
+    let c2 = palette.[(iterColors.[it-1] + 1)%palette.Length]
     let m = (((nu % 1.0)*(float(n-s)/float d))+(float s/float d))
     interpolate c1 c2 m
 
+// Generates the iteration counts and histogram
+// count -> counts how many points escaped at each iteration
+// hist -> (accumulated count)/total points
 let histogram iterations (points : array<array<option<int * Complex>>>) =
-    let h = Array.zeroCreate iterations
+    let count = Array.zeroCreate iterations
     let width = points.[0].Length
     let height = points.Length
     for i in 0..(width-1) do
         for j in 0..(height-1) do
             match points.[j].[i] with
-            | Some (it, _) -> h.[it-1] <- h.[it-1] + 1
+            | Some (it, _) -> count.[it-1] <- count.[it-1] + 1
             | None -> ()
-    let (accum, total) = Array.mapFold (fun acc i -> (acc + i, acc + i)) 0 h
-    Array.map (fun n -> (float)n/(float)total) accum
+    let (accum, total) = Array.mapFold (fun acc i -> (acc + i, acc + i)) 0 count
+    let hist = Array.map (fun n -> (float)n/(float)total) accum
+    (count, hist)
 
-let iterCount iterations (points : array<array<option<int * Complex>>>) =
-    let h = Array.zeroCreate iterations
-    let width = points.[0].Length
-    let height = points.Length
-    for i in 0..(width-1) do
-        for j in 0..(height-1) do
-            match points.[j].[i] with
-            | Some (it, _) -> h.[it-1] <- h.[it-1] + 1
-            | None -> ()
-    h
-
-let positions (adjPalette : array<Color>) (iterCounts : array<int>) =
-    let rec separate (l : List<Color>) =
+// Calculates the percentage of a certain iteration inside the group of iterations with the same color (for color smoothing)
+// Returns an array of (start, end, denominator)
+let positions (iterColors : array<int>) (iterCounts : array<int>) =
+    let rec separate (l : List<int>) =
         match l with
         | x :: _ -> List.takeWhile (fun n -> n = x) l :: separate (List.skipWhile (fun n -> n = x) l)
         | _ -> []
-    let lists = separate (List.ofArray adjPalette)
+    let lists = separate (List.ofArray iterColors)
     let genCount n =
         [| for i in 1..n -> (i, n) |]
-    let groups = List.map (fun (l : List<Color>) -> genCount l.Length) lists
+    let groups = List.map (fun (l : List<int>) -> genCount l.Length) lists
     let rec processGroup i (all : list<array<(int * int)>>) =
         match all with
         | x :: xs ->
@@ -84,21 +84,24 @@ let positions (adjPalette : array<Color>) (iterCounts : array<int>) =
         | _ -> []
     processGroup 0 groups |> List.concat |> Array.ofList
 
-let makePalette (palette : array<Color>) (hist : array<float>) =
-    let colorPalette : array<Color> = Array.zeroCreate hist.Length
+// Assigns a color to every iteration. Makes sure all contiguous iterations have contiguous or equal colors.
+// Returns an array of indexes to the palette
+let assignColors (palette : array<Color>) (hist : array<float>) =
+    let iterColors : array<int> = Array.zeroCreate hist.Length
     let colors = palette.Length
     let rec assign i lastC lastN =
-        if i < colorPalette.Length then
+        if i < iterColors.Length then
             match (int (2.0*(float colors)*hist.[i-1])) with
             | n when n > lastN ->
-                colorPalette.[i] <- palette.[(lastC+1)%colors]
+                iterColors.[i] <- (lastC+1)%colors
                 assign (i+1) (lastC+1) n
             | _ ->
-                colorPalette.[i] <- palette.[lastC%colors]
+                iterColors.[i] <- lastC%colors
                 assign (i+1) lastC lastN
     assign 1 -1 -1
-    colorPalette
+    iterColors
 
+// generates the bitmap from number of iterations and a result array from the mandelbrot function
 let draw iterations (points : array<array<option<int * Complex>>>) =
     let palette = [|
         Color.FromArgb(255, 66, 30, 15);
@@ -120,18 +123,17 @@ let draw iterations (points : array<array<option<int * Complex>>>) =
     |]
     let width = points.[0].Length
     let height = points.Length
-    let hist = histogram iterations points
-    let iterCounts = iterCount iterations points
+    let (iterCounts, hist) = histogram iterations points
+    let iterColors = assignColors palette hist
+    let p = positions iterColors iterCounts
     let bitmap = new Bitmap(width, height)
-    let adjPalette = makePalette palette hist
-    let p = positions adjPalette iterCounts
     for i in 0..(width-1) do
         for j in 0..(height-1) do
             match points.[j].[i] with
             | Some (it, c) ->
                 let logZn = (log ( c.Real*c.Real + c.Imaginary*c.Imaginary )) / 2.0
                 let nu = float it + 1.0 - (log( logZn / log(2.0) )) / log(2.0)
-                bitmap.SetPixel(i, j, (color adjPalette palette it nu p.[it-1]))
+                bitmap.SetPixel(i, j, (color iterColors palette it nu p.[it-1]))
             | None -> bitmap.SetPixel(i, j, Color.Black)
     bitmap
 
@@ -148,7 +150,6 @@ let main argv =
     let mutable y = float argv.[4]
     let mutable r = float argv.[5]
     render xPixels yPixels iterations x y r
-    //(positions ([|1./8.;2./8.;3./8.;8./8.|]) 1 ([|1;2;1;4|])) |> printfn "%A"
     // Interactive
     (*
     printf "->"
