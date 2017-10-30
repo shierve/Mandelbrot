@@ -6,3 +6,5 @@
 /home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/obj/Debug/Mandelbrot2.exe.mdb
 /home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/FSharp.Core.dll
 /home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/System.ValueTuple.dll
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/BigRationalLibrary.dll
+/home/shierve/Code/Projects/fsharp/Mandelbrot2/Mandelbrot2/bin/Debug/MathNet.Numerics.dll

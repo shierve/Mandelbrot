@@ -2,11 +2,11 @@
 open System.IO
 open System.Numerics
 open System
-open Palettes
+open Mandelbrot.Palettes
+open Mandelbrot.Numerics
 
-[<Literal>]
-let paletteLoops = 2
-//wiki
+let mutable paletteLoops : float = 1.6
+let mutable paletteOffset : int = 14
 let palette = Palette.wiki2
 
 let f (z : Complex) (c : Complex) = (z * z) + c
@@ -48,8 +48,8 @@ let interpolate (c1:Color) (c2:Color) (m:float) =
 
 // returns the color of a pixel given its parameters
 let color (iterColors : array<int>) (it : int) (nu : float) ((s, n, d) : (int * int * int)) =
-    let c1 = palette.[iterColors.[it-1]]
-    let c2 = palette.[(iterColors.[it-1] + 1)%palette.Length]
+    let c1 = palette.[((iterColors.[it-1])+paletteOffset)%palette.Length]
+    let c2 = palette.[(iterColors.[it-1] + 1 + paletteOffset)%palette.Length]
     let m = (((nu % 1.0)*(float(n-s)/float d))+(float s/float d))
     interpolate c1 c2 m
 
@@ -90,20 +90,33 @@ let positions (iterColors : array<int>) (iterCounts : array<int>) =
         | _ -> []
     processGroup 0 groups |> List.concat |> Array.ofList
 
+let roundFloat (f : float) = int (Math.Round f)
+
 // Assigns a color to every iteration. Makes sure all contiguous iterations have contiguous or equal colors.
 // Returns an array of indexes to the palette
 let assignColors (hist : array<float>) =
     let iterColors : array<int> = Array.zeroCreate hist.Length
     let colors = palette.Length
+    let mutable position = 1
+    let mutable corrected = 0
     let rec assign i lastC lastN =
         if i < iterColors.Length then
-            match (int ((float paletteLoops)*(float colors)*hist.[i-1])) with
+            let assignedC = (int ((float paletteLoops)*(float colors)*hist.[i]))
+            match assignedC with
             | n when n > lastN ->
+                position <- 1
                 iterColors.[i] <- (lastC+1)%colors
                 assign (i+1) (lastC+1) n
             | _ ->
-                iterColors.[i] <- lastC%colors
-                assign (i+1) lastC lastN
+                position <- position + 1
+                let skipped = (lastN) - lastC
+                if (skipped > 0) && (position > 2*(corrected)) then
+                    corrected <- corrected + 1
+                    iterColors.[i] <- (lastC+1)%colors
+                    assign (i+1) (lastC+1) lastN
+                else
+                    iterColors.[i] <- lastC%colors
+                    assign (i+1) lastC lastN
     assign 1 -1 -1
     iterColors
 
@@ -129,6 +142,15 @@ let render xPixels yPixels iterations x y r =
     let bm = pointsMatrix xPixels yPixels (Complex(x, y)) r |> mandelbrot iterations |> draw iterations
     bm.Save(Path.Combine(__SOURCE_DIRECTORY__, "plot.png"))
 
+let breathe xPixels yPixels iterations x y r =
+    let mandelbrotMatrix = pointsMatrix xPixels yPixels (Complex(x, y)) r |> mandelbrot iterations
+    for i in 0..(palette.Length-1) do
+        printfn "frame %A" i
+        let bm = draw iterations mandelbrotMatrix
+        paletteOffset <- i
+        let filename = string i + ".png"
+        bm.Save(Path.Combine(__SOURCE_DIRECTORY__, filename))
+
 [<EntryPoint>]
 let main argv =
     let xPixels = int argv.[0]
@@ -137,6 +159,14 @@ let main argv =
     let mutable x = float argv.[3]
     let mutable y = float argv.[4]
     let mutable r = float argv.[5]
+    if (argv.Length > 6) then
+        paletteLoops <- float argv.[6]
+    if (argv.Length > 7) then
+        paletteOffset <- int argv.[7]
+    (*let a = BigRational.Create (1000I, 2000I) |> BigRational.Normalize
+    let b = BigRational.Create (1I, 23123243234242313123212I)
+    let c = BigComplex.Create (a, b)
+    printfn "%A" c*)
     render xPixels yPixels iterations x y r
     // Interactive
     (*

@@ -1,4 +1,4 @@
-module Palettes
+module Mandelbrot.Palettes
 
 open System.Drawing
 
@@ -59,5 +59,23 @@ type Palette =
             Color.FromArgb(255,14,3,14)
             Color.FromArgb(255,5,0,38)
             Color.FromArgb(255,5,0,71)
+        |]
+        static member wiki2reverse = [|
+            Color.FromArgb(255,208,232,247)
+            Color.FromArgb(255,134,175,225)
+            Color.FromArgb(255,67,118,205)
+            Color.FromArgb(255,30,74,172)
+            Color.FromArgb(255,17,25,135)
+            Color.FromArgb(255,7,0,93)
+            Color.FromArgb(255,5,0,71)
+            Color.FromArgb(255,5,0,38)
+            Color.FromArgb(255,14,3,14)
+            Color.FromArgb(255,66,18,6)
+            Color.FromArgb(255,100,49,1)
+            Color.FromArgb(255,148,84,0)
+            Color.FromArgb(255,200,129,1)
+            Color.FromArgb(255,253,168,1)
+            Color.FromArgb(255,245,201,90)
+            Color.FromArgb(255,237,231,190)
         |]
     end

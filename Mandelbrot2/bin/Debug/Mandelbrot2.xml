@@ -2,5 +2,40 @@
 <doc>
 <assembly><name>Mandelbrot2</name></assembly>
 <members>
+<member name="M:Mandelbrot.Numerics.BigRational.op_UnaryPlus(Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the given rational number
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.op_UnaryNegation(Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the negation of a rational number
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.op_Subtraction(Mandelbrot.Numerics.BigRational,Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the difference of two rational numbers
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.op_Multiply(Mandelbrot.Numerics.BigRational,Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the product of two rational numbers
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.op_Division(Mandelbrot.Numerics.BigRational,Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the ratio of two rational numbers
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.op_Addition(Mandelbrot.Numerics.BigRational,Mandelbrot.Numerics.BigRational)">
+<summary>
+ Return the sum of two rational numbers
+</summary>
+</member>
+<member name="M:Mandelbrot.Numerics.BigRational.ToBigInteger(Mandelbrot.Numerics.BigRational)">
+<summary>
+ Returns the integer part of a rational number.
+</summary>
+</member>
 </members>
 </doc>

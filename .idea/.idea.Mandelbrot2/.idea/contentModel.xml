@@ -6,6 +6,7 @@
       <e p="Mandelbrot2" t="IncludeRecursive">
         <e p="App.config" t="Include" />
         <e p="AssemblyInfo.fs" t="Include" />
+        <e p="BigRational.fs" t="Include" />
         <e p="Mandelbrot2.fsproj" t="IncludeRecursive" />
         <e p="Palettes.fs" t="Include" />
         <e p="Program.fs" t="Include" />
